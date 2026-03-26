@@ -1,11 +1,10 @@
-// Data layer — sekarang localStorage, nanti tinggal ganti ke contract calls
-
 export interface DeadSwitch {
   id: string;
   characterName: string;
   beneficiary: string;
   message: string;
   timerDays: number;
+  depositAmount: number;
   createdAt: string;
   lastSeen: string;
   status: 'ARMED' | 'DANGER' | 'TRIGGERED';

@@ -146,10 +146,17 @@ export default function Dashboard() {
       }}>
 
       <nav className="relative z-10 flex items-center justify-between px-8 py-5 border-b border-red-900/20">
-        <button onClick={() => router.push('/')} className="flex items-center gap-3 hover:opacity-60 transition-opacity">
-          <div className={`w-2 h-2 rounded-full bg-red-500 transition-opacity duration-700 ${pulse ? 'opacity-100' : 'opacity-20'}`} />
-          <span className="text-xs tracking-[0.3em] text-red-500/60 uppercase font-mono">Dead Man&apos;s Switch</span>
-        </button>
+        <div className="flex items-center gap-4">
+          <button onClick={() => router.push('/')}
+            className="flex items-center gap-2 text-xs text-zinc-600 font-mono tracking-widest uppercase hover:text-zinc-400 transition-colors">
+            ← Home
+          </button>
+          <span className="text-zinc-800 font-mono text-xs">·</span>
+          <div className="flex items-center gap-2">
+            <div className={`w-2 h-2 rounded-full bg-red-500 transition-opacity duration-700 ${pulse ? 'opacity-100' : 'opacity-20'}`} />
+            <span className="text-xs tracking-[0.3em] text-red-500/60 uppercase font-mono">Dead Man&apos;s Switch</span>
+          </div>
+        </div>
         <div className="flex items-center gap-4">
           <div className="text-xs font-mono text-zinc-700 hidden sm:block">
             {isSlushConnected ? '// Slush' : '// Privy'} · {shortAddress}
@@ -197,11 +204,18 @@ export default function Dashboard() {
         )}
 
         {switches.length === 0 ? (
-          <div className="border border-red-900/15 bg-red-950/5 p-16 text-center">
-            <div className="text-5xl mb-4">☠️</div>
-            <p className="text-zinc-600 font-mono text-sm mb-6">No switches armed. You&apos;re unprotected in the Frontier.</p>
-            <button onClick={() => router.push('/create')} className="px-8 py-3 font-mono text-sm tracking-widest uppercase border border-red-500/40 text-red-400 hover:bg-red-950/20 transition-all cursor-pointer">
-              → Arm First Switch
+          <div className="border border-red-900/15 p-20 text-center relative overflow-hidden">
+            <div className="absolute inset-0 pointer-events-none"
+              style={{ background: 'radial-gradient(ellipse at center, rgba(255,32,32,0.04) 0%, transparent 70%)' }} />
+            <div className="text-6xl mb-6 relative z-10">☠️</div>
+            <p className="text-zinc-500 font-mono text-sm mb-2 relative z-10">No switches armed.</p>
+            <p className="text-zinc-700 font-mono text-xs mb-8 relative z-10 tracking-widest uppercase">
+              You&apos;re unprotected in the Frontier
+            </p>
+            <button onClick={() => router.push('/create')}
+              className="relative z-10 px-10 py-3 font-mono text-sm tracking-widest uppercase text-black bg-red-500 hover:bg-red-400 transition-all font-bold cursor-pointer"
+              style={{ boxShadow: '0 0 30px rgba(255,32,32,0.3)' }}>
+              ⚡ Arm First Switch
             </button>
           </div>
         ) : (
@@ -228,6 +242,29 @@ export default function Dashboard() {
                     </span>
                   </div>
 
+                  {/* Info row */}
+                  <div className="flex items-center gap-0 mb-5 border border-zinc-900 divide-x divide-zinc-900">
+                    <div className="flex flex-col gap-0.5 px-4 py-3 flex-1">
+                      <span className="text-xs text-zinc-700 font-mono tracking-widest uppercase">SUI Locked</span>
+                      <span className="text-yellow-400 font-black font-mono">{sw.depositAmount ?? '—'} SUI</span>
+                    </div>
+                    <div className="flex flex-col gap-0.5 px-4 py-3 flex-1">
+                      <span className="text-xs text-zinc-700 font-mono tracking-widest uppercase">Timer</span>
+                      <span className="text-white font-black font-mono">{sw.timerDays} days</span>
+                    </div>
+                    <div className="flex flex-col gap-0.5 px-4 py-3 flex-1 min-w-0">
+                      <span className="text-xs text-zinc-700 font-mono tracking-widest uppercase">Claim Link</span>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(`${window.location.origin}/claim?id=${sw.id}`);
+                        }}
+                        className="text-zinc-500 text-xs hover:text-red-400 transition-colors text-left font-mono truncate cursor-pointer"
+                        title="Click to copy claim link">
+                        Copy → /claim?id=...
+                      </button>
+                    </div>
+                  </div>
+
                   <div className="mb-5">
                     <CountdownTimer lastSeen={sw.lastSeen} timerDays={sw.timerDays} />
                   </div>
@@ -246,13 +283,13 @@ export default function Dashboard() {
                     <div className="flex gap-3">
                       <button
                         onClick={() => handleCheckIn(sw.id)}
-                        className="flex-1 py-2.5 font-mono text-xs tracking-widest uppercase border border-green-900/40 text-green-500/70 hover:bg-green-950/20 hover:text-green-400 transition-all cursor-pointer"
+                        className="flex-1 py-2.5 font-mono text-xs tracking-widest uppercase bg-green-950/30 border border-green-900/50 text-green-400 hover:bg-green-950/60 hover:text-green-300 transition-all cursor-pointer font-bold"
                       >
                         ✓ Check In · Reset Timer
                       </button>
                       <button
                         onClick={() => handleDelete(sw.id)}
-                        className="px-4 py-2.5 font-mono text-xs tracking-widest uppercase border border-zinc-900 text-zinc-700 hover:border-red-900/40 hover:text-red-900/60 transition-all cursor-pointer"
+                        className="px-4 py-2.5 font-mono text-xs tracking-widest uppercase border border-zinc-800 text-zinc-600 hover:border-red-900/50 hover:text-red-500/60 transition-all cursor-pointer"
                       >
                         Disarm
                       </button>
