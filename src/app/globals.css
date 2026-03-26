@@ -1,1 +1,45 @@
 @import "tailwindcss";
+
+/* Style override for dapp-kit ConnectButton */
+.connect-wallet-wrapper button {
+  background: transparent !important;
+  border: 1px solid rgba(239, 68, 68, 0.4) !important;
+  color: #f87171 !important;
+  font-family: ui-monospace, 'Courier New', monospace !important;
+  font-size: 0.75rem !important;
+  letter-spacing: 0.2em !important;
+  text-transform: uppercase !important;
+  padding: 0.75rem 2rem !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  min-width: 180px !important;
+  transition: all 0.2s ease !important;
+  font-weight: 400 !important;
+}
+
+.connect-wallet-wrapper button:hover {
+  background: rgba(255, 32, 32, 0.1) !important;
+  border-color: rgba(239, 68, 68, 0.7) !important;
+  box-shadow: 0 0 20px rgba(255, 32, 32, 0.08) !important;
+}
+
+/* Nav version */
+.connect-wallet-nav button {
+  background: transparent !important;
+  border: 1px solid rgba(239, 68, 68, 0.3) !important;
+  color: rgba(248, 113, 113, 0.7) !important;
+  font-family: ui-monospace, monospace !important;
+  font-size: 0.7rem !important;
+  letter-spacing: 0.15em !important;
+  text-transform: uppercase !important;
+  padding: 0.4rem 1rem !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  font-weight: 400 !important;
+}
+
+.connect-wallet-nav button:hover {
+  background: rgba(255, 32, 32, 0.08) !important;
+  border-color: rgba(239, 68, 68, 0.5) !important;
+  color: #f87171 !important;
+}

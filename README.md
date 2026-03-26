@@ -1,36 +1,71 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ☠️ Dead Man's Switch — EVE Frontier Hackathon 2026
 
-## Getting Started
+> *"In the void between stars, death comes without warning."*
 
-First, run the development server:
+A decentralized dead man's switch for EVE Frontier pilots. If you go silent — your assets, your legacy, your last words — delivered automatically.
 
+🔗 **Live Demo:** https://dead-mans-switch-gilt.vercel.app
+
+---
+
+## 🎯 What It Does
+
+Dead Man's Switch lets EVE Frontier players create an automated "final transmission" — a digital will that executes if they disappear beyond a set threshold.
+
+1. **Set Your Switch** — Define a beneficiary wallet, a timeout duration, and an optional last message
+2. **Stay Active** — As long as you check in, nothing happens
+3. **Trigger on Silence** — If you go dark beyond the threshold, your instructions execute automatically
+
+---
+
+## ✨ Features
+
+- 🔐 **Privy Auth** — Login via email, Google, or crypto wallet. No extension required
+- 🔗 **Sui Blockchain Integration** — Real on-chain activity detection via Sui RPC
+- ⏱️ **Configurable Timer** — 3, 7, 14, or 30 days of silence before trigger
+- 📡 **Mission Control Dashboard** — Live countdown, danger indicators, check-in system
+- 🌑 **EVE Frontier UI** — Dark, atmospheric, lore-accurate design
+- ⚡ **Auto Check-in Detection** — Reads wallet's last on-chain transaction timestamp
+
+---
+
+## 🛠️ Tech Stack
+
+| Layer | Tech |
+|---|---|
+| Framework | Next.js 15 (App Router) |
+| Auth & Wallet | Privy |
+| Blockchain | Sui Mainnet (via JSON-RPC) |
+| Sui SDK | @mysten/dapp-kit + @mysten/sui |
+| Styling | Tailwind CSS |
+| Deployment | Vercel |
+
+---
+
+## 🚀 Run Locally
 ```bash
+git clone https://github.com/theodhorex/dead-man-switch
+cd dead-man-switch
+npm install --legacy-peer-deps
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 🏆 Hackathon Track
 
-## Learn More
+**Weirdest Idea** — A digital last will for space pilots. Dark, unique, and deeply aligned with EVE Frontier's brutal lore where death is permanent and assets matter.
 
-To learn more about Next.js, take a look at the following resources:
+---
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 🔮 Roadmap (Post-Hackathon)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- [ ] On-chain storage of switches (Move smart contract on Sui)
+- [ ] NFT-based "Last Will" certificates
+- [ ] Auto-trigger via Sui automation / cron oracle
+- [ ] Multi-beneficiary support
+- [ ] EVE Frontier API integration for in-game activity detection
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+---
