@@ -24,27 +24,44 @@ export async function getFirstCoin(address: string): Promise<string | null> {
 }
 
 export async function fetchPlayerSwitches(playerAddress: string) {
-  const result = await rpc('suix_getOwnedObjects', [
-    playerAddress,
+  // Query via events SwitchCreated, filter by owner
+  const result = await rpc('suix_queryEvents', [
     {
-      filter: { StructType: `${PACKAGE_ID}::${MODULE}::DeadMansSwitch` },
-      options: { showContent: true },
+      MoveEventType: `${PACKAGE_ID}::${MODULE}::SwitchCreated`,
     },
     null,
     50,
+    false,
   ]);
 
-  const decodeBytes = (val: any): string => {
-    try {
-      if (Array.isArray(val)) return new TextDecoder().decode(new Uint8Array(val));
-      return val ?? '';
-    } catch { return ''; }
-  };
+  const events = result?.data ?? [];
 
-  return (result?.data ?? [])
-    .map((obj: any) => {
+  // Filter events milik player ini
+  const myEvents = events.filter(
+    (e: any) => e.parsedJson?.owner?.toLowerCase() === playerAddress.toLowerCase()
+  );
+
+  // Fetch tiap object by ID
+  const switches = await Promise.all(
+    myEvents.map(async (e: any) => {
+      const switchId = e.parsedJson?.switch_id;
+      if (!switchId) return null;
+
+      const obj = await rpc('sui_getObject', [
+        switchId,
+        { showContent: true },
+      ]);
+
       const fields = obj?.data?.content?.fields;
       if (!fields) return null;
+
+      const decodeBytes = (val: any): string => {
+        try {
+          if (Array.isArray(val)) return new TextDecoder().decode(new Uint8Array(val));
+          return val ?? '';
+        } catch { return ''; }
+      };
+
       return {
         objectId: obj.data.objectId,
         owner: fields.owner,
@@ -56,10 +73,12 @@ export async function fetchPlayerSwitches(playerAddress: string) {
         lastCheckinMs: Number(fields.last_checkin_ms),
         isActive: fields.is_active,
         isTriggered: fields.is_triggered,
-        balanceMist: Number(fields.balance?.fields?.value ?? 0),
+        balanceMist: Number(fields.balance?.fields?.value ?? fields.balance ?? 0),
       };
     })
-    .filter(Boolean);
+  );
+
+  return switches.filter(Boolean);
 }
 
 // ── TX builders ──────────────────────────────────────────────
