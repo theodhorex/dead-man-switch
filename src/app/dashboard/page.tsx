@@ -145,7 +145,21 @@ export default function Dashboard() {
         </div>
         <div className="flex flex-col sm:flex-row gap-4 items-center">
           <div className="flex flex-col items-center gap-2">
-            <ConnectButton />
+            <ConnectButton
+              style={{
+                background: 'transparent',
+                border: '1px solid rgba(239,68,68,0.4)',
+                color: '#f87171',
+                fontSize: '12px',
+                padding: '12px 32px',
+                fontFamily: 'monospace',
+                letterSpacing: '0.1em',
+                textTransform: 'uppercase',
+                cursor: 'pointer',
+                minWidth: '180px',
+                borderRadius: '0',
+              }}
+            />
             <span className="text-xs text-zinc-700 font-mono">// Sui Wallet</span>
           </div>
           <span className="text-zinc-800 font-mono">or</span>
@@ -216,7 +230,7 @@ export default function Dashboard() {
         {loading ? (
           <div className="border border-red-900/15 p-20 text-center">
             <div className="flex gap-1 justify-center mb-4">
-              {[0,1,2].map(i => (
+              {[0, 1, 2].map(i => (
                 <div key={i} className="w-2 h-2 rounded-full bg-red-500 animate-bounce"
                   style={{ animationDelay: `${i * 0.15}s` }} />
               ))}

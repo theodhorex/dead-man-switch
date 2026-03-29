@@ -82,7 +82,21 @@ export default function CreateSwitch() {
         </div>
         <div className="flex flex-col sm:flex-row gap-4 items-center">
           <div className="flex flex-col items-center gap-2">
-            <ConnectButton />
+            <ConnectButton
+              style={{
+                background: 'transparent',
+                border: '1px solid rgba(239,68,68,0.4)',
+                color: '#f87171',
+                fontSize: '12px',
+                padding: '12px 32px',
+                fontFamily: 'monospace',
+                letterSpacing: '0.1em',
+                textTransform: 'uppercase',
+                cursor: 'pointer',
+                minWidth: '180px',
+                borderRadius: '0',
+              }}
+            />
             <span className="text-xs text-zinc-700 font-mono">// Sui Wallet</span>
           </div>
           <span className="text-zinc-800 font-mono">or</span>
