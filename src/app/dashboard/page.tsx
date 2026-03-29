@@ -20,28 +20,32 @@ interface SwitchData {
   balanceMist: number;
 }
 
-function CountdownTimer({ deadlineMs }: { deadlineMs: number }) {
+function CountdownTimer({ deadlineMs, isActive }: { deadlineMs: number; isActive: boolean }) {
   const [display, setDisplay] = useState('');
   const [pct, setPct] = useState(100);
 
   useEffect(() => {
+    if (!isActive) {
+      setDisplay('—');
+      setPct(0);
+      return;
+    }
     const tick = () => {
       const now = Date.now();
       const remaining = Math.max(0, deadlineMs - now);
-      const total = deadlineMs - (deadlineMs - 30 * 24 * 60 * 60 * 1000); // approx
       setPct(Math.min(100, (remaining / (30 * 24 * 60 * 60 * 1000)) * 100));
       const d = Math.floor(remaining / 86400000);
       const h = Math.floor((remaining % 86400000) / 3600000);
       const m = Math.floor((remaining % 3600000) / 60000);
       const s = Math.floor((remaining % 60000) / 1000);
-      setDisplay(remaining === 0 ? 'TRIGGERED' : `${d}d ${h}h ${m}m ${s}s`);
+      setDisplay(remaining === 0 ? 'EXPIRED' : `${d}d ${h}h ${m}m ${s}s`);
     };
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
-  }, [deadlineMs]);
+  }, [deadlineMs, isActive]);
 
-  const color = pct > 50 ? '#22c55e' : pct > 25 ? '#f59e0b' : '#ef4444';
+  const color = !isActive ? '#71717a' : pct > 50 ? '#22c55e' : pct > 25 ? '#f59e0b' : '#ef4444';
 
   return (
     <div className="flex flex-col gap-2">
@@ -51,7 +55,7 @@ function CountdownTimer({ deadlineMs }: { deadlineMs: number }) {
       </div>
       <div className="h-1 bg-zinc-900 rounded-full overflow-hidden">
         <div className="h-full rounded-full transition-all duration-1000"
-          style={{ width: `${pct}%`, background: color, boxShadow: `0 0 8px ${color}` }} />
+          style={{ width: `${pct}%`, background: color, boxShadow: isActive ? `0 0 8px ${color}` : 'none' }} />
       </div>
     </div>
   );
@@ -76,7 +80,8 @@ export default function Dashboard() {
     setLoading(true);
     try {
       const data = await fetchPlayerSwitches(address);
-      setSwitches(data as SwitchData[]);
+      // newest first
+      setSwitches((data as SwitchData[]).reverse());
     } catch (err) {
       console.error('Failed to load switches:', err);
     } finally {
@@ -209,16 +214,13 @@ export default function Dashboard() {
       </nav>
 
       <div className="max-w-3xl mx-auto px-6 py-12">
-        <div className="mb-8 flex items-end justify-between">
-          <div>
-            <h1 className="text-4xl font-black text-white mb-1">Mission Control</h1>
-            <p className="text-zinc-600 font-mono text-sm">
-              {loading ? 'Scanning blockchain...' : `${switches.length} switch${switches.length !== 1 ? 'es' : ''} on-chain · Sui Testnet`}
-            </p>
-          </div>
+        <div className="mb-8">
+          <h1 className="text-4xl font-black text-white mb-1">Mission Control</h1>
+          <p className="text-zinc-600 font-mono text-sm">
+            {loading ? 'Scanning blockchain...' : `${switches.length} switch${switches.length !== 1 ? 'es' : ''} on-chain · Sui Testnet`}
+          </p>
         </div>
 
-        {/* Not Slush warning */}
         {!isSlushConnected && (
           <div className="mb-6 border border-yellow-900/30 bg-yellow-950/10 px-5 py-3">
             <p className="text-xs text-yellow-500/60 font-mono">
@@ -257,14 +259,17 @@ export default function Dashboard() {
             {switches.map(sw => {
               const status = getStatus(sw);
               const isTriggered = status === 'TRIGGERED';
+              const isDisarmed = status === 'DISARMED';
               const isDanger = status === 'DANGER';
               const isActioning = actionLoading === sw.objectId;
+              const isInactive = isTriggered || isDisarmed;
 
               return (
                 <div key={sw.objectId} className="border p-6 transition-all duration-500" style={{
-                  borderColor: isTriggered ? 'rgba(239,68,68,0.6)' : isDanger ? 'rgba(245,158,11,0.4)' : 'rgba(255,32,32,0.15)',
-                  background: isTriggered ? 'rgba(239,68,68,0.05)' : isDanger ? 'rgba(245,158,11,0.03)' : 'rgba(255,32,32,0.02)',
+                  borderColor: isTriggered ? 'rgba(239,68,68,0.6)' : isDisarmed ? 'rgba(255,255,255,0.05)' : isDanger ? 'rgba(245,158,11,0.4)' : 'rgba(255,32,32,0.15)',
+                  background: isTriggered ? 'rgba(239,68,68,0.05)' : isDisarmed ? 'rgba(255,255,255,0.01)' : isDanger ? 'rgba(245,158,11,0.03)' : 'rgba(255,32,32,0.02)',
                   boxShadow: isTriggered ? '0 0 30px rgba(239,68,68,0.1)' : 'none',
+                  opacity: isDisarmed ? 0.6 : 1,
                 }}>
                   <div className="flex items-start justify-between mb-5">
                     <div>
@@ -281,7 +286,9 @@ export default function Dashboard() {
                   <div className="flex items-center gap-0 mb-5 border border-zinc-900 divide-x divide-zinc-900">
                     <div className="flex flex-col gap-0.5 px-4 py-3 flex-1">
                       <span className="text-xs text-zinc-700 font-mono tracking-widest uppercase">SUI Locked</span>
-                      <span className="text-yellow-400 font-black font-mono">{mistToSui(sw.balanceMist)} SUI</span>
+                      <span className="font-black font-mono" style={{ color: isDisarmed ? '#71717a' : '#facc15' }}>
+                        {mistToSui(sw.balanceMist)} SUI
+                      </span>
                     </div>
                     <div className="flex flex-col gap-0.5 px-4 py-3 flex-1">
                       <span className="text-xs text-zinc-700 font-mono tracking-widest uppercase">Timer</span>
@@ -289,26 +296,54 @@ export default function Dashboard() {
                     </div>
                     <div className="flex flex-col gap-0.5 px-4 py-3 flex-1">
                       <span className="text-xs text-zinc-700 font-mono tracking-widest uppercase">Object ID</span>
-                      <span className="text-zinc-600 text-xs font-mono truncate">
-                        {sw.objectId.slice(0, 8)}...{sw.objectId.slice(-6)}
-                      </span>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(sw.objectId);
+                          alert('Object ID copied!');
+                        }}
+                        className="text-zinc-600 text-xs font-mono truncate text-left hover:text-zinc-400 transition-colors cursor-pointer"
+                        title="Click to copy full Object ID"
+                      >
+                        {sw.objectId.slice(0, 8)}...{sw.objectId.slice(-6)} 📋
+                      </button>
                     </div>
                   </div>
 
                   <div className="mb-5">
-                    <CountdownTimer deadlineMs={sw.deadlineMs} />
+                    <CountdownTimer deadlineMs={sw.deadlineMs} isActive={sw.isActive && !sw.isTriggered} />
                   </div>
-
+                  {/* Share claim link */}
+                  {!isInactive && (
+                    <div className="mb-4 flex items-center justify-between border border-zinc-900 px-4 py-2.5">
+                      <span className="text-xs text-zinc-700 font-mono tracking-widest uppercase">Claim Link for Beneficiary</span>
+                      <button
+                        onClick={() => {
+                          const link = `${window.location.origin}/claim?id=${sw.objectId}`;
+                          navigator.clipboard.writeText(link);
+                          alert('Claim link copied! Send this to your beneficiary.');
+                        }}
+                        className="text-xs font-mono text-red-500/60 hover:text-red-400 transition-colors cursor-pointer tracking-widest uppercase"
+                      >
+                        Copy Link →
+                      </button>
+                    </div>
+                  )}
                   {sw.lastMessage && (
                     <p className="text-xs text-zinc-600 font-mono italic mb-5 border-l-2 border-red-900/30 pl-3 leading-relaxed">
                       &quot;{sw.lastMessage.slice(0, 100)}{sw.lastMessage.length > 100 ? '...' : ''}&quot;
                     </p>
                   )}
 
-                  {isTriggered ? (
-                    <div className="py-3 text-center border border-red-500/30 bg-red-950/10">
-                      <span className="text-xs font-mono text-red-400 tracking-widest uppercase">
-                        ☠ Switch Triggered — Assets Transferred to Beneficiary
+                  {/* Bottom status bar */}
+                  {isInactive ? (
+                    <div className="py-3 text-center border" style={{
+                      borderColor: isTriggered ? 'rgba(239,68,68,0.3)' : 'rgba(255,255,255,0.05)',
+                      background: isTriggered ? 'rgba(239,68,68,0.05)' : 'transparent',
+                    }}>
+                      <span className="text-xs font-mono tracking-widest uppercase" style={{
+                        color: isTriggered ? '#f87171' : '#52525b'
+                      }}>
+                        {isTriggered ? '☠ Switch Triggered — Assets Transferred to Beneficiary' : '○ Switch Disarmed — Deposit Returned to Owner'}
                       </span>
                     </div>
                   ) : (
