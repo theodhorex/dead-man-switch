@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ConnectButton } from '@mysten/dapp-kit';
+import { NavLogo } from '@/components/NavLogo';
 
 const TIMER_OPTIONS = [
   { label: '3 Days', value: 3, desc: 'High alert. For active pilots.' },
@@ -135,6 +136,8 @@ export default function CreateSwitch() {
       <nav className="relative z-10 flex items-center justify-between px-8 py-5 border-b border-red-900/20">
         <div className="flex items-center gap-4">
           <button onClick={() => router.push('/')} className="text-xs text-zinc-600 font-mono tracking-widest uppercase hover:text-zinc-400 transition-colors">← Home</button>
+          <span className="text-zinc-800 font-mono text-xs">·</span>
+          <NavLogo />
           <span className="text-zinc-800 font-mono text-xs">·</span>
           <button onClick={() => router.push('/dashboard')} className="text-xs text-zinc-700 font-mono tracking-widest uppercase hover:text-zinc-500 transition-colors">Dashboard</button>
         </div>

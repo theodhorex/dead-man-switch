@@ -122,3 +122,43 @@ export function buildWithdraw(switchObjectId: string) {
   });
   return tx;
 }
+
+// Fetch semua switch aktif di seluruh blockchain
+export async function fetchGlobalStats() {
+  try {
+    const result = await rpc('suix_queryEvents', [
+      { MoveEventType: `${PACKAGE_ID}::${MODULE}::SwitchCreated` },
+      null,
+      50,
+      false,
+    ]);
+
+    const events = result?.data ?? [];
+    const total = events.length;
+
+    // Fetch tiap switch untuk cek status aktif
+    const switches = await Promise.all(
+      events.map(async (e: any) => {
+        const switchId = e.parsedJson?.switch_id;
+        if (!switchId) return null;
+        try {
+          const obj = await rpc('sui_getObject', [switchId, { showContent: true }]);
+          const fields = obj?.data?.content?.fields;
+          if (!fields) return null;
+          return {
+            isActive: fields.is_active,
+            isTriggered: fields.is_triggered,
+          };
+        } catch { return null; }
+      })
+    );
+
+    const valid = switches.filter(Boolean) as any[];
+    const active = valid.filter(s => s.isActive && !s.isTriggered).length;
+    const triggered = valid.filter(s => s.isTriggered).length;
+
+    return { active, triggered, total };
+  } catch {
+    return { active: 0, triggered: 0, total: 0 };
+  }
+}

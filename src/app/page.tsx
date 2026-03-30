@@ -3,10 +3,13 @@ import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { ConnectButton } from '@mysten/dapp-kit';
+import { NavLogo } from '@/components/NavLogo';
+import { fetchPlayerSwitches } from '@/lib/contract';
+import { fetchGlobalStats } from '@/lib/contract';
 
 export default function Home() {
   const router = useRouter();
-  const { isAuthenticated, isSlushConnected, shortAddress, loginWithPrivy, logout, ready } = useAuth();
+  const { isAuthenticated, isSlushConnected, shortAddress, address, loginWithPrivy, logout, ready } = useAuth();
   const [pulse, setPulse] = useState(true);
   const [glitch, setGlitch] = useState(false);
   const [stats, setStats] = useState({ active: 0, triggered: 0 });
@@ -28,10 +31,10 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    const switches = JSON.parse(localStorage.getItem('dms_switches') || '[]');
-    const triggered = switches.filter((s: { status: string }) => s.status === 'TRIGGERED').length;
-    setStats({ active: switches.length, triggered });
-  }, []);
+    fetchGlobalStats().then((data) => {
+      setStats({ active: data.active, triggered: data.triggered });
+    });
+  }, []); // tidak perlu address, langsung load saat landing page dibuka
 
   // Typewriter effect
   useEffect(() => {
@@ -59,12 +62,10 @@ export default function Home() {
       {/* Nav */}
       <nav className="relative z-10 flex items-center justify-between px-8 py-5 border-b border-red-900/20 backdrop-blur-sm">
         <div className="flex items-center gap-3">
-          <div className="relative">
-            <div className={`w-2 h-2 rounded-full bg-red-500 transition-opacity duration-700 ${pulse ? 'opacity-100' : 'opacity-10'}`} />
-            <div className={`absolute inset-0 w-2 h-2 rounded-full bg-red-500 blur-sm transition-opacity duration-700 ${pulse ? 'opacity-60' : 'opacity-0'}`} />
+          <div className="flex items-center gap-3">
+            <NavLogo />
+            <span className="text-xs text-red-900/40 font-mono hidden sm:block">// v1.0.0</span>
           </div>
-          <span className="text-xs tracking-[0.35em] text-red-500/60 uppercase font-mono">Dead Man&apos;s Switch</span>
-          <span className="text-xs text-red-900/40 font-mono hidden sm:block">// v1.0.0</span>
         </div>
         <div className="flex items-center gap-3">
           {isAuthenticated ? (

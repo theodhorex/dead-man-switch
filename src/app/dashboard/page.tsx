@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { fetchPlayerSwitches, buildCheckIn, buildWithdraw } from '@/lib/contract';
 import { useSendTx } from '@/hooks/useSendTX';
 import { ConnectButton } from '@mysten/dapp-kit';
+import { NavLogo } from '@/components/NavLogo';
 
 interface SwitchData {
   objectId: string;
@@ -193,10 +194,7 @@ export default function Dashboard() {
             ← Home
           </button>
           <span className="text-zinc-800 font-mono text-xs">·</span>
-          <div className="flex items-center gap-2">
-            <div className={`w-2 h-2 rounded-full bg-red-500 transition-opacity duration-700 ${pulse ? 'opacity-100' : 'opacity-20'}`} />
-            <span className="text-xs tracking-[0.3em] text-red-500/60 uppercase font-mono">Dead Man&apos;s Switch</span>
-          </div>
+          <NavLogo />
         </div>
         <div className="flex items-center gap-4">
           <div className="text-xs font-mono text-zinc-700 hidden sm:block">

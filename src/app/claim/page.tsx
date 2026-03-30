@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { switchStore, DeadSwitch } from '@/lib/switchStore';
 import { ConnectButton } from '@mysten/dapp-kit';
 import { Suspense } from 'react';
+import { NavLogo } from '@/components/NavLogo';
 
 function CountdownDisplay({ lastSeen, timerDays }: { lastSeen: string; timerDays: number }) {
   const [display, setDisplay] = useState('');
@@ -133,10 +134,7 @@ function ClaimContent() {
 
       {/* Nav */}
       <nav className="relative z-10 flex items-center justify-between px-8 py-5 border-b border-red-900/20">
-        <button onClick={() => router.push('/')} className="flex items-center gap-3 hover:opacity-60 transition-opacity">
-          <div className={`w-2 h-2 rounded-full bg-red-500 transition-opacity duration-700 ${pulse ? 'opacity-100' : 'opacity-20'}`} />
-          <span className="text-xs tracking-[0.3em] text-red-500/60 uppercase font-mono">Dead Man&apos;s Switch</span>
-        </button>
+        <NavLogo />
         {!isAuthenticated ? (
           <div className="flex items-center gap-2">
             <div className="connect-wallet-nav"><ConnectButton /></div>

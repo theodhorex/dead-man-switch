@@ -1,6 +1,7 @@
 'use client';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
+import { NavLogo } from '@/components/NavLogo';
 
 export default function NotFound() {
   const router = useRouter();
@@ -120,8 +121,8 @@ export default function NotFound() {
       </div>
 
       {/* Corner decorations */}
-      <div className="fixed top-6 left-6 text-xs text-zinc-900 font-mono tracking-widest">
-        DEAD MAN&apos;S SWITCH // v1.0.0
+      <div className="fixed top-4 left-6 opacity-30">
+        <NavLogo />
       </div>
       <div className="fixed bottom-6 right-6 text-xs text-zinc-900 font-mono tracking-widest">
         EVE FRONTIER · 2026
