@@ -146,7 +146,7 @@ export async function fetchGlobalStats() {
           return {
             isActive: fields.is_active,
             isTriggered: fields.is_triggered,
-            balanceMist: Number(fields.balance?.fields?.value ?? 0),
+            balanceMist: Number(fields.balance?.fields?.value ?? fields.balance ?? 0),
           };
         } catch { return null; }
       })
