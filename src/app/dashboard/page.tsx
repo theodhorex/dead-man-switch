@@ -21,20 +21,18 @@ interface SwitchData {
   balanceMist: number;
 }
 
-function CountdownTimer({ deadlineMs, isActive }: { deadlineMs: number; isActive: boolean }) {
+function CountdownTimer({ deadlineMs, timerDays, isActive }: {
+  deadlineMs: number; timerDays: number; isActive: boolean;
+}) {
   const [display, setDisplay] = useState('');
   const [pct, setPct] = useState(100);
 
   useEffect(() => {
-    if (!isActive) {
-      setDisplay('—');
-      setPct(0);
-      return;
-    }
+    if (!isActive) { setDisplay('—'); setPct(0); return; }
+    const totalMs = timerDays * 24 * 60 * 60 * 1000;
     const tick = () => {
-      const now = Date.now();
-      const remaining = Math.max(0, deadlineMs - now);
-      setPct(Math.min(100, (remaining / (30 * 24 * 60 * 60 * 1000)) * 100));
+      const remaining = Math.max(0, deadlineMs - Date.now());
+      setPct(Math.min(100, (remaining / totalMs) * 100));
       const d = Math.floor(remaining / 86400000);
       const h = Math.floor((remaining % 86400000) / 3600000);
       const m = Math.floor((remaining % 3600000) / 60000);
@@ -44,7 +42,7 @@ function CountdownTimer({ deadlineMs, isActive }: { deadlineMs: number; isActive
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
-  }, [deadlineMs, isActive]);
+  }, [deadlineMs, timerDays, isActive]);
 
   const color = !isActive ? '#71717a' : pct > 50 ? '#22c55e' : pct > 25 ? '#f59e0b' : '#ef4444';
 
@@ -56,8 +54,140 @@ function CountdownTimer({ deadlineMs, isActive }: { deadlineMs: number; isActive
       </div>
       <div className="h-1 bg-zinc-900 rounded-full overflow-hidden">
         <div className="h-full rounded-full transition-all duration-1000"
-          style={{ width: `${pct}%`, background: color, boxShadow: isActive ? `0 0 8px ${color}` : 'none' }} />
+          style={{ width: `${Math.min(100, pct)}%`, background: color, boxShadow: isActive ? `0 0 8px ${color}` : 'none' }} />
       </div>
+    </div>
+  );
+}
+
+function SwitchCard({
+  sw, onCheckIn, onDisarm, isActioning, isSlushConnected, getStatus, statusColor, statusLabel, mistToSui
+}: {
+  sw: SwitchData;
+  onCheckIn: (id: string) => void;
+  onDisarm: (id: string) => void;
+  isActioning: boolean;
+  isSlushConnected: boolean;
+  getStatus: (sw: SwitchData) => string;
+  statusColor: Record<string, string>;
+  statusLabel: Record<string, string>;
+  mistToSui: (n: number) => string;
+}) {
+  const status = getStatus(sw);
+  const isTriggered = status === 'TRIGGERED';
+  const isDisarmed = status === 'DISARMED';
+  const isDanger = status === 'DANGER';
+  const isInactive = isTriggered || isDisarmed;
+
+  return (
+    <div className="border p-6 transition-all duration-500" style={{
+      borderColor: isTriggered ? 'rgba(239,68,68,0.6)' : isDisarmed ? 'rgba(255,255,255,0.05)' : isDanger ? 'rgba(245,158,11,0.4)' : 'rgba(255,32,32,0.15)',
+      background: isTriggered ? 'rgba(239,68,68,0.05)' : isDisarmed ? 'rgba(255,255,255,0.01)' : isDanger ? 'rgba(245,158,11,0.03)' : 'rgba(255,32,32,0.02)',
+      boxShadow: isTriggered ? '0 0 30px rgba(239,68,68,0.1)' : 'none',
+      opacity: isDisarmed ? 0.5 : 1,
+    }}>
+      {/* Header */}
+      <div className="flex items-start justify-between mb-5">
+        <div>
+          <div className="font-black text-white text-xl mb-1">{sw.characterName}</div>
+          <div className="text-xs text-zinc-600 font-mono">
+            → {sw.beneficiary.slice(0, 12)}...{sw.beneficiary.slice(-6)}
+          </div>
+        </div>
+        <span className="text-xs font-mono tracking-widest" style={{ color: statusColor[status] }}>
+          {statusLabel[status]}
+        </span>
+      </div>
+
+      {/* Stats row */}
+      <div className="flex items-center mb-5 border border-zinc-900 divide-x divide-zinc-900">
+        <div className="flex flex-col gap-0.5 px-4 py-3 flex-1">
+          <span className="text-xs text-zinc-700 font-mono tracking-widest uppercase">SUI Locked</span>
+          <span className="font-black font-mono" style={{ color: isDisarmed ? '#71717a' : '#facc15' }}>
+            {mistToSui(sw.balanceMist)} SUI
+          </span>
+        </div>
+        <div className="flex flex-col gap-0.5 px-4 py-3 flex-1">
+          <span className="text-xs text-zinc-700 font-mono tracking-widest uppercase">Timer</span>
+          <span className="text-white font-black font-mono">{sw.timerDays} days</span>
+        </div>
+        <div className="flex flex-col gap-0.5 px-4 py-3 flex-1">
+          <span className="text-xs text-zinc-700 font-mono tracking-widest uppercase">Object ID</span>
+          <button
+            onClick={() => { navigator.clipboard.writeText(sw.objectId); alert('Object ID copied!'); }}
+            className="text-zinc-600 text-xs font-mono truncate text-left hover:text-zinc-400 transition-colors cursor-pointer"
+            title="Click to copy"
+          >
+            {sw.objectId.slice(0, 8)}...{sw.objectId.slice(-6)} 📋
+          </button>
+        </div>
+      </div>
+
+      {/* Countdown */}
+      <div className="mb-5">
+        <CountdownTimer
+          deadlineMs={sw.deadlineMs}
+          timerDays={sw.timerDays}
+          isActive={sw.isActive && !sw.isTriggered}
+        />
+      </div>
+
+      {/* Claim link — only for active switches */}
+      {!isInactive && (
+        <div className="mb-4 flex items-center justify-between border border-zinc-900 px-4 py-2.5">
+          <span className="text-xs text-zinc-700 font-mono tracking-widest uppercase">Claim Link for Beneficiary</span>
+          <button
+            onClick={() => {
+              const link = `${window.location.origin}/claim?id=${sw.objectId}`;
+              navigator.clipboard.writeText(link);
+              alert('Claim link copied! Send this to your beneficiary.');
+            }}
+            className="text-xs font-mono text-red-500/60 hover:text-red-400 transition-colors cursor-pointer tracking-widest uppercase"
+          >
+            Copy Link →
+          </button>
+        </div>
+      )}
+
+      {/* Last message */}
+      {sw.lastMessage && (
+        <p className="text-xs text-zinc-600 font-mono italic mb-5 border-l-2 border-red-900/30 pl-3 leading-relaxed">
+          &quot;{sw.lastMessage.slice(0, 100)}{sw.lastMessage.length > 100 ? '...' : ''}&quot;
+        </p>
+      )}
+
+      {/* Action bar */}
+      {isInactive ? (
+        <div className="py-3 text-center border" style={{
+          borderColor: isTriggered ? 'rgba(239,68,68,0.3)' : 'rgba(255,255,255,0.05)',
+          background: isTriggered ? 'rgba(239,68,68,0.05)' : 'transparent',
+        }}>
+          <span className="text-xs font-mono tracking-widest uppercase" style={{
+            color: isTriggered ? '#f87171' : '#52525b'
+          }}>
+            {isTriggered
+              ? '☠ Switch Triggered — Assets Transferred to Beneficiary'
+              : '○ Switch Disarmed — Deposit Returned to Owner'}
+          </span>
+        </div>
+      ) : (
+        <div className="flex gap-3">
+          <button
+            onClick={() => onCheckIn(sw.objectId)}
+            disabled={isActioning || !isSlushConnected}
+            className="flex-1 py-2.5 font-mono text-xs tracking-widest uppercase bg-green-950/30 border border-green-900/50 text-green-400 hover:bg-green-950/60 transition-all font-bold disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {isActioning ? '⏳ Processing...' : '✓ Check In · Reset Timer'}
+          </button>
+          <button
+            onClick={() => onDisarm(sw.objectId)}
+            disabled={isActioning || !isSlushConnected}
+            className="px-4 py-2.5 font-mono text-xs tracking-widest uppercase border border-zinc-800 text-zinc-600 hover:border-red-900/50 hover:text-red-500/60 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            Disarm
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -70,6 +200,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(false);
   const [pulse, setPulse] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [showArchive, setShowArchive] = useState(false);
 
   useEffect(() => {
     const id = setInterval(() => setPulse(p => !p), 1000);
@@ -81,7 +212,6 @@ export default function Dashboard() {
     setLoading(true);
     try {
       const data = await fetchPlayerSwitches(address);
-      // newest first
       setSwitches((data as SwitchData[]).reverse());
     } catch (err) {
       console.error('Failed to load switches:', err);
@@ -90,9 +220,7 @@ export default function Dashboard() {
     }
   }, [address]);
 
-  useEffect(() => {
-    loadSwitches();
-  }, [loadSwitches]);
+  useEffect(() => { loadSwitches(); }, [loadSwitches]);
 
   const handleCheckIn = async (objectId: string) => {
     if (!isSlushConnected) { alert('Connect your Slush wallet to check in.'); return; }
@@ -138,6 +266,11 @@ export default function Dashboard() {
     ARMED: '● ARMED', DANGER: '⚠ DANGER', TRIGGERED: '☠ TRIGGERED', DISARMED: '○ DISARMED'
   };
 
+  const activeSwitches = switches.filter(sw => sw.isActive || sw.isTriggered);
+  const archivedSwitches = switches.filter(sw => !sw.isActive && !sw.isTriggered);
+
+  const sharedCardProps = { getStatus, statusColor, statusLabel, mistToSui, isSlushConnected };
+
   if (!isAuthenticated) {
     return (
       <main className="min-h-screen bg-black text-white flex flex-col items-center justify-center gap-8"
@@ -151,27 +284,14 @@ export default function Dashboard() {
         </div>
         <div className="flex flex-col sm:flex-row gap-4 items-center">
           <div className="flex flex-col items-center gap-2">
-            <ConnectButton
-              style={{
-                background: 'transparent',
-                border: '1px solid rgba(239,68,68,0.4)',
-                color: '#f87171',
-                fontSize: '12px',
-                padding: '12px 32px',
-                fontFamily: 'monospace',
-                letterSpacing: '0.1em',
-                textTransform: 'uppercase',
-                cursor: 'pointer',
-                minWidth: '180px',
-                borderRadius: '0',
-              }}
-            />
+            <div className="connect-wallet-wrapper"><ConnectButton /></div>
             <span className="text-xs text-zinc-700 font-mono">// Sui Wallet</span>
           </div>
           <span className="text-zinc-800 font-mono">or</span>
           <div className="flex flex-col items-center gap-2">
-            <button onClick={loginWithPrivy} className="px-8 py-3 font-mono text-sm tracking-widest uppercase border border-red-500/40 text-red-400 hover:bg-red-950/20 transition-all min-w-[180px]">
-              → Email / Google
+            <button onClick={loginWithPrivy}
+              className="px-8 py-3 font-mono text-sm tracking-widest uppercase border border-red-500/40 text-red-400 hover:bg-red-950/20 transition-all min-w-[180px]">
+              → Via Privy
             </button>
             <span className="text-xs text-zinc-700 font-mono">// No wallet needed</span>
           </div>
@@ -187,19 +307,25 @@ export default function Dashboard() {
         backgroundSize: '60px 60px'
       }}>
 
+      {/* Nav */}
       <nav className="relative z-10 flex items-center justify-between px-8 py-5 border-b border-red-900/20">
         <div className="flex items-center gap-4">
-          <button onClick={() => router.push('/')}
-            className="text-xs text-zinc-600 font-mono tracking-widest uppercase hover:text-zinc-400 transition-colors">
-            ← Home
-          </button>
-          <span className="text-zinc-800 font-mono text-xs">·</span>
           <NavLogo />
         </div>
         <div className="flex items-center gap-4">
-          <div className="text-xs font-mono text-zinc-700 hidden sm:block">
-            {isSlushConnected ? '// Slush' : '// Privy'} · {shortAddress}
-          </div>
+          {/* Wallet address + copy */}
+          {address && (
+            <button
+              onClick={() => { navigator.clipboard.writeText(address); alert('Wallet address copied!\n\n' + address); }}
+              className="flex items-center gap-1.5 text-xs font-mono text-zinc-500 hover:text-zinc-300 transition-colors border border-zinc-800 hover:border-zinc-600 px-3 py-1.5"
+              title="Click to copy full wallet address"
+            >
+              <span className="text-red-500/50">{isSlushConnected ? 'Slush' : 'Privy'}</span>
+              <span className="text-zinc-700">·</span>
+              <span>{shortAddress}</span>
+              <span className="text-zinc-600">📋</span>
+            </button>
+          )}
           <button onClick={loadSwitches} disabled={loading}
             className="text-xs font-mono tracking-widest uppercase px-3 py-2 border border-red-900/20 text-red-900/60 hover:border-red-900/40 hover:text-red-500/60 transition-all disabled:opacity-30">
             {loading ? '...' : '↻ Sync'}
@@ -215,7 +341,9 @@ export default function Dashboard() {
         <div className="mb-8">
           <h1 className="text-4xl font-black text-white mb-1">Mission Control</h1>
           <p className="text-zinc-600 font-mono text-sm">
-            {loading ? 'Scanning blockchain...' : `${switches.length} switch${switches.length !== 1 ? 'es' : ''} on-chain · Sui Testnet`}
+            {loading
+              ? 'Scanning blockchain...'
+              : `${activeSwitches.length} active · ${archivedSwitches.length} archived · Sui Testnet`}
           </p>
         </div>
 
@@ -237,7 +365,7 @@ export default function Dashboard() {
             </div>
             <p className="text-zinc-700 font-mono text-xs tracking-widest uppercase">Loading from blockchain...</p>
           </div>
-        ) : switches.length === 0 ? (
+        ) : activeSwitches.length === 0 && archivedSwitches.length === 0 ? (
           <div className="border border-red-900/15 p-20 text-center relative overflow-hidden">
             <div className="absolute inset-0 pointer-events-none"
               style={{ background: 'radial-gradient(ellipse at center, rgba(255,32,32,0.04) 0%, transparent 70%)' }} />
@@ -253,113 +381,76 @@ export default function Dashboard() {
             </button>
           </div>
         ) : (
-          <div className="flex flex-col gap-4">
-            {switches.map(sw => {
-              const status = getStatus(sw);
-              const isTriggered = status === 'TRIGGERED';
-              const isDisarmed = status === 'DISARMED';
-              const isDanger = status === 'DANGER';
-              const isActioning = actionLoading === sw.objectId;
-              const isInactive = isTriggered || isDisarmed;
+          <>
+            {/* Active switches */}
+            {activeSwitches.length > 0 ? (
+              <div className="flex flex-col gap-4">
+                {activeSwitches.map(sw => (
+                  <SwitchCard
+                    key={sw.objectId}
+                    sw={sw}
+                    onCheckIn={handleCheckIn}
+                    onDisarm={handleDisarm}
+                    isActioning={actionLoading === sw.objectId}
+                    {...sharedCardProps}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="border border-zinc-900 p-8 text-center mb-4">
+                <p className="text-zinc-600 font-mono text-sm">No active switches.</p>
+                <button onClick={() => router.push('/create')}
+                  className="mt-4 text-xs text-red-500/60 font-mono tracking-widest uppercase hover:text-red-400 transition-colors underline underline-offset-4">
+                  + Arm a new switch
+                </button>
+              </div>
+            )}
 
-              return (
-                <div key={sw.objectId} className="border p-6 transition-all duration-500" style={{
-                  borderColor: isTriggered ? 'rgba(239,68,68,0.6)' : isDisarmed ? 'rgba(255,255,255,0.05)' : isDanger ? 'rgba(245,158,11,0.4)' : 'rgba(255,32,32,0.15)',
-                  background: isTriggered ? 'rgba(239,68,68,0.05)' : isDisarmed ? 'rgba(255,255,255,0.01)' : isDanger ? 'rgba(245,158,11,0.03)' : 'rgba(255,32,32,0.02)',
-                  boxShadow: isTriggered ? '0 0 30px rgba(239,68,68,0.1)' : 'none',
-                  opacity: isDisarmed ? 0.6 : 1,
-                }}>
-                  <div className="flex items-start justify-between mb-5">
-                    <div>
-                      <div className="font-black text-white text-xl mb-1">{sw.characterName}</div>
-                      <div className="text-xs text-zinc-600 font-mono">
-                        → {sw.beneficiary.slice(0, 12)}...{sw.beneficiary.slice(-6)}
+            {/* Archive — disarmed */}
+            {archivedSwitches.length > 0 && (
+              <div className="mt-8 pt-8 border-t border-zinc-900">
+                <button
+                  onClick={() => setShowArchive(p => !p)}
+                  className="flex items-center gap-2 text-xs text-zinc-700 font-mono tracking-widest uppercase hover:text-zinc-500 transition-colors mb-5 w-full"
+                >
+                  <span className="text-zinc-800">{showArchive ? '▼' : '▶'}</span>
+                  <span>Archive — {archivedSwitches.length} disarmed switch{archivedSwitches.length > 1 ? 'es' : ''}</span>
+                  <div className="flex-1 h-px bg-zinc-900 ml-2" />
+                </button>
+
+                {showArchive && (
+                  <div className="flex flex-col gap-3">
+                    {archivedSwitches.map(sw => (
+                      <div key={sw.objectId}
+                        className="border border-zinc-900 px-5 py-4 opacity-40 hover:opacity-60 transition-opacity">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-black text-white text-sm">{sw.characterName}</span>
+                          <span className="text-xs font-mono text-zinc-600 tracking-widest">○ DISARMED</span>
+                        </div>
+                        <div className="flex items-center gap-3 text-xs font-mono text-zinc-700 flex-wrap">
+                          <span>→ {sw.beneficiary.slice(0, 10)}...{sw.beneficiary.slice(-6)}</span>
+                          <span>·</span>
+                          <span>{sw.timerDays} day timer</span>
+                          <span>·</span>
+                          <button
+                            onClick={() => { navigator.clipboard.writeText(sw.objectId); alert('Object ID copied!'); }}
+                            className="hover:text-zinc-500 transition-colors cursor-pointer"
+                          >
+                            {sw.objectId.slice(0, 8)}...{sw.objectId.slice(-6)} 📋
+                          </button>
+                        </div>
+                        {sw.lastMessage && (
+                          <p className="text-xs text-zinc-800 font-mono italic mt-2">
+                            &quot;{sw.lastMessage.slice(0, 60)}...&quot;
+                          </p>
+                        )}
                       </div>
-                    </div>
-                    <span className="text-xs font-mono tracking-widest" style={{ color: statusColor[status] }}>
-                      {statusLabel[status]}
-                    </span>
+                    ))}
                   </div>
-
-                  <div className="flex items-center gap-0 mb-5 border border-zinc-900 divide-x divide-zinc-900">
-                    <div className="flex flex-col gap-0.5 px-4 py-3 flex-1">
-                      <span className="text-xs text-zinc-700 font-mono tracking-widest uppercase">SUI Locked</span>
-                      <span className="font-black font-mono" style={{ color: isDisarmed ? '#71717a' : '#facc15' }}>
-                        {mistToSui(sw.balanceMist)} SUI
-                      </span>
-                    </div>
-                    <div className="flex flex-col gap-0.5 px-4 py-3 flex-1">
-                      <span className="text-xs text-zinc-700 font-mono tracking-widest uppercase">Timer</span>
-                      <span className="text-white font-black font-mono">{sw.timerDays} days</span>
-                    </div>
-                    <div className="flex flex-col gap-0.5 px-4 py-3 flex-1">
-                      <span className="text-xs text-zinc-700 font-mono tracking-widest uppercase">Object ID</span>
-                      <button
-                        onClick={() => {
-                          navigator.clipboard.writeText(sw.objectId);
-                          alert('Object ID copied!');
-                        }}
-                        className="text-zinc-600 text-xs font-mono truncate text-left hover:text-zinc-400 transition-colors cursor-pointer"
-                        title="Click to copy full Object ID"
-                      >
-                        {sw.objectId.slice(0, 8)}...{sw.objectId.slice(-6)} 📋
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="mb-5">
-                    <CountdownTimer deadlineMs={sw.deadlineMs} isActive={sw.isActive && !sw.isTriggered} />
-                  </div>
-                  {/* Share claim link */}
-                  {!isInactive && (
-                    <div className="mb-4 flex items-center justify-between border border-zinc-900 px-4 py-2.5">
-                      <span className="text-xs text-zinc-700 font-mono tracking-widest uppercase">Claim Link for Beneficiary</span>
-                      <button
-                        onClick={() => {
-                          const link = `${window.location.origin}/claim?id=${sw.objectId}`;
-                          navigator.clipboard.writeText(link);
-                          alert('Claim link copied! Send this to your beneficiary.');
-                        }}
-                        className="text-xs font-mono text-red-500/60 hover:text-red-400 transition-colors cursor-pointer tracking-widest uppercase"
-                      >
-                        Copy Link →
-                      </button>
-                    </div>
-                  )}
-                  {sw.lastMessage && (
-                    <p className="text-xs text-zinc-600 font-mono italic mb-5 border-l-2 border-red-900/30 pl-3 leading-relaxed">
-                      &quot;{sw.lastMessage.slice(0, 100)}{sw.lastMessage.length > 100 ? '...' : ''}&quot;
-                    </p>
-                  )}
-
-                  {/* Bottom status bar */}
-                  {isInactive ? (
-                    <div className="py-3 text-center border" style={{
-                      borderColor: isTriggered ? 'rgba(239,68,68,0.3)' : 'rgba(255,255,255,0.05)',
-                      background: isTriggered ? 'rgba(239,68,68,0.05)' : 'transparent',
-                    }}>
-                      <span className="text-xs font-mono tracking-widest uppercase" style={{
-                        color: isTriggered ? '#f87171' : '#52525b'
-                      }}>
-                        {isTriggered ? '☠ Switch Triggered — Assets Transferred to Beneficiary' : '○ Switch Disarmed — Deposit Returned to Owner'}
-                      </span>
-                    </div>
-                  ) : (
-                    <div className="flex gap-3">
-                      <button onClick={() => handleCheckIn(sw.objectId)} disabled={isActioning || !isSlushConnected}
-                        className="flex-1 py-2.5 font-mono text-xs tracking-widest uppercase bg-green-950/30 border border-green-900/50 text-green-400 hover:bg-green-950/60 transition-all font-bold disabled:opacity-40 disabled:cursor-not-allowed">
-                        {isActioning ? '⏳ Processing...' : '✓ Check In · Reset Timer'}
-                      </button>
-                      <button onClick={() => handleDisarm(sw.objectId)} disabled={isActioning || !isSlushConnected}
-                        className="px-4 py-2.5 font-mono text-xs tracking-widest uppercase border border-zinc-800 text-zinc-600 hover:border-red-900/50 hover:text-red-500/60 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
-                        Disarm
-                      </button>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+                )}
+              </div>
+            )}
+          </>
         )}
       </div>
     </main>

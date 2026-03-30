@@ -200,7 +200,7 @@ function ClaimContent() {
             />
             <button onClick={loginWithPrivy}
               className="border border-red-900/50 text-red-500/70 text-xs px-4 py-2 font-mono tracking-widest uppercase hover:border-red-500/50 hover:text-red-400 hover:bg-red-950/20 transition-all">
-              Email / OTP
+              Via Privy
             </button>
           </div>
         ) : (
@@ -322,7 +322,7 @@ function ClaimContent() {
                         />
                         <button onClick={loginWithPrivy}
                           className="px-6 py-3 font-mono text-sm tracking-widest uppercase border border-red-500/40 text-red-400 hover:bg-red-950/20 transition-all">
-                          Email / OTP
+                          Via Privy
                         </button>
                       </div>
                     </div>

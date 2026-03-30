@@ -11,21 +11,26 @@ export function useAuth() {
   const { mutate: connectWallet } = useConnectWallet();
   const { mutate: disconnectWallet } = useDisconnectWallet();
 
-  // Slush connected = priority (crypto native)
   const isSlushConnected = !!slushAccount;
   const isPrivyConnected = privy.authenticated;
   const isAuthenticated = isSlushConnected || isPrivyConnected;
-
   const authMethod: AuthMethod = isSlushConnected ? 'slush' : isPrivyConnected ? 'privy' : null;
 
-  const address = isSlushConnected
-    ? slushAccount?.address
-    : privy.user?.wallet?.address ?? privy.user?.email?.address ?? null;
+  // Ambil address — Slush priority, fallback ke Privy embedded wallet
+  const privyWalletAddress = (privy.user?.linkedAccounts?.find(
+    (a: any) => a.type === 'wallet' && a.walletClient === 'privy'
+  ) as any)?.address ?? (privy.user?.wallet as any)?.address ?? null;
+
+  const address: string | null = isSlushConnected
+    ? (slushAccount?.address ?? null)
+    : privyWalletAddress;
 
   const shortAddress = address
     ? address.startsWith('0x')
       ? `${address.slice(0, 8)}...${address.slice(-6)}`
-      : address
+      : address.length > 20
+        ? `${address.slice(0, 10)}...`
+        : address
     : null;
 
   const loginWithSlush = () => {

@@ -134,9 +134,7 @@ export async function fetchGlobalStats() {
     ]);
 
     const events = result?.data ?? [];
-    const total = events.length;
 
-    // Fetch tiap switch untuk cek status aktif
     const switches = await Promise.all(
       events.map(async (e: any) => {
         const switchId = e.parsedJson?.switch_id;
@@ -148,6 +146,7 @@ export async function fetchGlobalStats() {
           return {
             isActive: fields.is_active,
             isTriggered: fields.is_triggered,
+            balanceMist: Number(fields.balance?.fields?.value ?? 0),
           };
         } catch { return null; }
       })
@@ -156,10 +155,13 @@ export async function fetchGlobalStats() {
     const valid = switches.filter(Boolean) as any[];
     const active = valid.filter(s => s.isActive && !s.isTriggered).length;
     const triggered = valid.filter(s => s.isTriggered).length;
+    const totalSui = valid
+      .filter(s => s.isActive && !s.isTriggered)
+      .reduce((sum, s) => sum + s.balanceMist, 0) / 1_000_000_000;
 
-    return { active, triggered, total };
+    return { active, triggered, totalSui };
   } catch {
-    return { active: 0, triggered: 0, total: 0 };
+    return { active: 0, triggered: 0, totalSui: 0 };
   }
 }
 

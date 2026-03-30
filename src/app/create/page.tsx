@@ -103,7 +103,7 @@ export default function CreateSwitch() {
           <span className="text-zinc-800 font-mono">or</span>
           <div className="flex flex-col items-center gap-2">
             <button onClick={loginWithPrivy} className="px-8 py-3 font-mono text-sm tracking-widest uppercase border border-red-500/40 text-red-400 hover:bg-red-950/20 transition-all min-w-[180px]">
-              → Email / OTP
+              → Via Privy
             </button>
             <span className="text-xs text-zinc-700 font-mono">// No wallet needed</span>
           </div>

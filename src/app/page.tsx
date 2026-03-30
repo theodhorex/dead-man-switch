@@ -12,7 +12,7 @@ export default function Home() {
   const { isAuthenticated, isSlushConnected, shortAddress, address, loginWithPrivy, logout, ready } = useAuth();
   const [pulse, setPulse] = useState(true);
   const [glitch, setGlitch] = useState(false);
-  const [stats, setStats] = useState({ active: 0, triggered: 0 });
+  const [stats, setStats] = useState({ active: 0, triggered: 0, totalSui: 0 });
   const [typed, setTyped] = useState('');
 
   const tagline = 'if you go silent — it triggers.';
@@ -32,7 +32,7 @@ export default function Home() {
 
   useEffect(() => {
     fetchGlobalStats().then((data) => {
-      setStats({ active: data.active, triggered: data.triggered });
+      setStats({ active: data.active, triggered: data.triggered, totalSui: data.totalSui });
     });
   }, []); // tidak perlu address, langsung load saat landing page dibuka
 
@@ -84,7 +84,7 @@ export default function Home() {
               <div className="connect-wallet-nav"><ConnectButton /></div>
               <button onClick={loginWithPrivy}
                 className="border border-red-900/50 text-red-500/70 text-xs px-4 py-2 font-mono tracking-widest uppercase hover:border-red-500/50 hover:text-red-400 hover:bg-red-950/20 transition-all">
-                Email / OTP
+                Via Privy
               </button>
             </div>
           )}
@@ -166,7 +166,7 @@ export default function Home() {
               <div className="flex flex-col items-center gap-2">
                 <button onClick={loginWithPrivy}
                   className="px-8 py-3 text-sm font-mono tracking-widest uppercase text-red-400 border border-red-500/40 hover:border-red-400/70 hover:bg-red-950/20 transition-all min-w-[180px]">
-                  → Email / OTP
+                  → Via Privy
                 </button>
                 <span className="text-xs text-zinc-800 font-mono">// No wallet needed</span>
               </div>
@@ -178,12 +178,12 @@ export default function Home() {
         <div className="mt-20 flex gap-16 border-t border-zinc-900/60 pt-8">
           {[
             { label: 'Active Switches', value: stats.active > 0 ? stats.active.toString() : '—' },
-            { label: 'Assets Protected', value: '∞' },
+            { label: 'Assets Protected', value: stats.totalSui > 0 ? `${stats.totalSui.toFixed(2)} SUI` : '—' },
             { label: 'Triggers Fired', value: stats.triggered > 0 ? stats.triggered.toString() : '—' },
           ].map(stat => (
             <div key={stat.label} className="text-center">
-              <div className="text-3xl font-mono font-black text-red-500/80 mb-1">{stat.value}</div>
-              <div className="text-xs text-zinc-700 tracking-widest uppercase font-mono">{stat.label}</div>
+              <div className="text-3xl font-mono font-black text-red-500/80">{stat.value}</div>
+              <div className="text-xs text-zinc-700 tracking-widest uppercase mt-1 font-mono">{stat.label}</div>
             </div>
           ))}
         </div>
