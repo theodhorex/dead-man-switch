@@ -350,7 +350,7 @@ export default function Dashboard() {
         {!isSlushConnected && (
           <div className="mb-6 border border-yellow-900/30 bg-yellow-950/10 px-5 py-3">
             <p className="text-xs text-yellow-500/60 font-mono">
-              ⚠ Connect your Slush wallet to arm, check in, or disarm switches on-chain.
+              ⚠ You&apos;re logged in via Privy. To perform on-chain actions (arm, check in, disarm), also connect your Slush wallet above.
             </p>
           </div>
         )}

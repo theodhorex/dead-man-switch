@@ -5,15 +5,18 @@ import { useAuth } from '@/hooks/useAuth';
 import { ConnectButton } from '@mysten/dapp-kit';
 import { Suspense } from 'react';
 import { NavLogo } from '@/components/NavLogo';
+import { useSendTx } from '@/hooks/useSendTX';
+import { buildTrigger } from '@/lib/contract';
 
-function CountdownDisplay({ deadlineMs }: { deadlineMs: number }) {
+function CountdownDisplay({ deadlineMs, timerDays }: { deadlineMs: number; timerDays: number }) {
   const [display, setDisplay] = useState('');
   const [pct, setPct] = useState(100);
 
   useEffect(() => {
+    const totalMs = timerDays * 24 * 60 * 60 * 1000; // ✅ pakai timerDays beneran
     const tick = () => {
       const remaining = Math.max(0, deadlineMs - Date.now());
-      setPct(Math.min(100, (remaining / (30 * 24 * 60 * 60 * 1000)) * 100));
+      setPct(Math.min(100, (remaining / totalMs) * 100));
       const d = Math.floor(remaining / 86400000);
       const h = Math.floor((remaining % 86400000) / 3600000);
       const m = Math.floor((remaining % 3600000) / 60000);
@@ -23,7 +26,7 @@ function CountdownDisplay({ deadlineMs }: { deadlineMs: number }) {
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
-  }, [deadlineMs]);
+  }, [deadlineMs, timerDays]);
 
   const color = pct > 50 ? '#22c55e' : pct > 25 ? '#f59e0b' : '#ef4444';
 
@@ -44,7 +47,8 @@ function CountdownDisplay({ deadlineMs }: { deadlineMs: number }) {
 function ClaimContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { isAuthenticated, loginWithPrivy, address } = useAuth();
+  const { isAuthenticated, loginWithPrivy, address, isSlushConnected } = useAuth();
+  const { sendTx } = useSendTx(); // ✅ tambahkan ini
 
   const [switchId, setSwitchId] = useState(searchParams.get('id') || '');
   const [found, setFound] = useState<any | null>(null);
@@ -112,14 +116,19 @@ function ClaimContent() {
 
   const handleClaim = async () => {
     if (!found) return;
-    if (!address) { alert('Connect your Slush wallet first!'); return; }
+    if (!isSlushConnected) {
+      alert('Connect your Slush wallet to trigger this switch.');
+      return;
+    }
+    setSearching(true);
     try {
-      const { buildTrigger } = await import('@/lib/contract');
-      const { useSendTx } = await import('@/hooks/useSendTX');
-      // Note: useSendTx harus dipake via hook, bukan dynamic import
-      alert('To trigger: use the Slush wallet via dashboard. Anyone can call trigger_switch after deadline.');
+      const tx = buildTrigger(found.id);
+      await sendTx(tx);
+      setClaimed(true);
     } catch (err: any) {
-      alert(`Failed: ${err.message}`);
+      alert(`Trigger failed: ${err.message}`);
+    } finally {
+      setSearching(false);
     }
   };
 
@@ -276,7 +285,7 @@ function ClaimContent() {
 
               {found.isActive && !found.isTriggered && (
                 <div className="mb-5">
-                  <CountdownDisplay deadlineMs={found.deadlineMs} />
+                  <CountdownDisplay deadlineMs={found.deadlineMs} timerDays={found.timerDays} />
                 </div>
               )}
 
