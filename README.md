@@ -1,17 +1,30 @@
+<div align="center">
+
+<!-- Replace with your actual logo path -->
+<img src="./public/logo.png" alt="Dead Man's Switch Logo" width="100" />
+
 # Dead Man's Switch
 
 > *"In the void between stars, death comes without warning."*
 
 A decentralized dead man's switch built for EVE Frontier pilots. Set a silence threshold — if you disappear, your SUI deposit and final message are delivered to your chosen beneficiary. Automatically. Permanently. On-chain.
 
+[![EVE Frontier](https://img.shields.io/badge/EVE-Frontier-blueviolet?style=flat-square)](https://www.evefrontier.com)
+[![Sui Testnet](https://img.shields.io/badge/Sui-Testnet-4DA2FF?style=flat-square)](https://suiexplorer.com)
+[![Move](https://img.shields.io/badge/Move-Smart%20Contract-00C2A8?style=flat-square)](https://move-language.github.io)
+[![Next.js](https://img.shields.io/badge/Next.js-16-black?style=flat-square)](https://nextjs.org)
+[![License MIT](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
+
 **Live Demo:** https://dead-mans-switch-gilt.vercel.app  
 **Smart Contract:** `0x2ed69dfc575e0fd3ad6f92705cc8ee5f061534c5d16a630d02892cef804bc7ec` · Sui Testnet
+
+</div>
 
 ---
 
 ## Overview
 
-EVE Frontier is a game where death is real and assets have weight. Dead Man's Switch extends that philosophy beyond the game — a pilot who goes dark for too long triggers an irreversible on-chain transfer to whoever they trusted most.
+EVE Frontier is a game where death is real and assets have weight. **Dead Man's Switch** extends that philosophy beyond the game — a pilot who goes dark for too long triggers an irreversible on-chain transfer to whoever they trusted most.
 
 No intermediaries. No appeals. The contract executes when silence exceeds the threshold.
 
