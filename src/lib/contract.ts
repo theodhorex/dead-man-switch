@@ -162,3 +162,12 @@ export async function fetchGlobalStats() {
     return { active: 0, triggered: 0, total: 0 };
   }
 }
+
+export function buildTrigger(switchObjectId: string) {
+  const tx = new Transaction();
+  tx.moveCall({
+    target: `${PACKAGE_ID}::${MODULE}::trigger_switch`,
+    arguments: [tx.object(switchObjectId), tx.object(CLOCK_ID)],
+  });
+  return tx;
+}

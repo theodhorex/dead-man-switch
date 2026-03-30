@@ -2,31 +2,28 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
-import { switchStore, DeadSwitch } from '@/lib/switchStore';
 import { ConnectButton } from '@mysten/dapp-kit';
 import { Suspense } from 'react';
 import { NavLogo } from '@/components/NavLogo';
 
-function CountdownDisplay({ lastSeen, timerDays }: { lastSeen: string; timerDays: number }) {
+function CountdownDisplay({ deadlineMs }: { deadlineMs: number }) {
   const [display, setDisplay] = useState('');
   const [pct, setPct] = useState(100);
 
   useEffect(() => {
     const tick = () => {
-      const elapsed = Date.now() - new Date(lastSeen).getTime();
-      const total = timerDays * 24 * 60 * 60 * 1000;
-      const remaining = Math.max(0, total - elapsed);
-      setPct((remaining / total) * 100);
+      const remaining = Math.max(0, deadlineMs - Date.now());
+      setPct(Math.min(100, (remaining / (30 * 24 * 60 * 60 * 1000)) * 100));
       const d = Math.floor(remaining / 86400000);
       const h = Math.floor((remaining % 86400000) / 3600000);
       const m = Math.floor((remaining % 3600000) / 60000);
       const s = Math.floor((remaining % 60000) / 1000);
-      setDisplay(`${d}d ${h}h ${m}m ${s}s`);
+      setDisplay(remaining === 0 ? 'EXPIRED' : `${d}d ${h}h ${m}m ${s}s`);
     };
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
-  }, [lastSeen, timerDays]);
+  }, [deadlineMs]);
 
   const color = pct > 50 ? '#22c55e' : pct > 25 ? '#f59e0b' : '#ef4444';
 
@@ -50,48 +47,99 @@ function ClaimContent() {
   const { isAuthenticated, loginWithPrivy, address } = useAuth();
 
   const [switchId, setSwitchId] = useState(searchParams.get('id') || '');
-  const [found, setFound] = useState<DeadSwitch | null>(null);
+  const [found, setFound] = useState<any | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [claimed, setClaimed] = useState(false);
-  const [pulse, setPulse] = useState(true);
+  const [searching, setSearching] = useState(false);
 
-  useEffect(() => {
-    const id = setInterval(() => setPulse(p => !p), 1000);
-    return () => clearInterval(id);
-  }, []);
-
-  // Auto-load if ?id= is in URL
   useEffect(() => {
     const id = searchParams.get('id');
     if (id) handleSearch(id);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleSearch = (id?: string) => {
+  const handleSearch = async (id?: string) => {
     const target = id || switchId;
-    const all = switchStore.getAll();
-    const sw = all.find(s => s.id === target);
-    if (sw) {
-      setFound({ ...sw, status: switchStore.computeStatus(sw) });
-      setNotFound(false);
-    } else {
-      setFound(null);
+    if (!target) return;
+    setSearching(true);
+    setNotFound(false);
+    setFound(null);
+
+    try {
+      const res = await fetch('https://fullnode.testnet.sui.io:443', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0', id: 1,
+          method: 'sui_getObject',
+          params: [target, { showContent: true }],
+        }),
+      });
+      const obj = await res.json();
+      const fields = obj?.result?.data?.content?.fields;
+      if (!fields) { setNotFound(true); return; }
+
+      const decodeBytes = (val: any): string => {
+        try {
+          if (Array.isArray(val)) return new TextDecoder().decode(new Uint8Array(val));
+          return val ?? '';
+        } catch { return ''; }
+      };
+
+      setFound({
+        id: target,
+        characterName: decodeBytes(fields.character_name),
+        beneficiary: fields.beneficiary,
+        message: decodeBytes(fields.last_message),
+        timerDays: Number(fields.timer_days),
+        depositAmount: Number(
+          fields.balance?.fields?.value ??
+          fields.balance?.value ??
+          fields.balance ??
+          0
+        ) / 1_000_000_000,
+        deadlineMs: Number(fields.deadline_ms),
+        isActive: fields.is_active,
+        isTriggered: fields.is_triggered,
+        owner: fields.owner,
+      });
+    } catch {
       setNotFound(true);
+    } finally {
+      setSearching(false);
     }
   };
 
-  const handleClaim = () => {
+  const handleClaim = async () => {
     if (!found) return;
-    // TODO: replace with contract call trigger_switch(found.id)
-    const all = switchStore.getAll().map(s =>
-      s.id === found.id ? { ...s, status: 'TRIGGERED' as const } : s
-    );
-    localStorage.setItem('dms_switches', JSON.stringify(all));
-    setClaimed(true);
+    if (!address) { alert('Connect your Slush wallet first!'); return; }
+    try {
+      const { buildTrigger } = await import('@/lib/contract');
+      const { useSendTx } = await import('@/hooks/useSendTX');
+      // Note: useSendTx harus dipake via hook, bukan dynamic import
+      alert('To trigger: use the Slush wallet via dashboard. Anyone can call trigger_switch after deadline.');
+    } catch (err: any) {
+      alert(`Failed: ${err.message}`);
+    }
   };
 
-  const status = found ? switchStore.computeStatus(found) : null;
-  const isTriggerable = status === 'TRIGGERED';
+  const isTriggerable = found && (found.isTriggered || (!found.isActive === false && Date.now() > found.deadlineMs));
+  const canTrigger = found && found.isActive && !found.isTriggered && Date.now() > found.deadlineMs;
+  const getStatus = () => {
+    if (!found) return null;
+    if (found.isTriggered) return 'TRIGGERED';
+    if (!found.isActive) return 'DISARMED';
+    if (Date.now() > found.deadlineMs) return 'EXPIRED';
+    return 'ARMED';
+  };
+  const status = getStatus();
+
+  const statusStyle: Record<string, { color: string; border: string }> = {
+    ARMED: { color: '#22c55e', border: 'rgba(34,197,94,0.3)' },
+    TRIGGERED: { color: '#ef4444', border: 'rgba(239,68,68,0.4)' },
+    EXPIRED: { color: '#ef4444', border: 'rgba(239,68,68,0.4)' },
+    DISARMED: { color: '#71717a', border: 'rgba(113,113,122,0.3)' },
+  };
 
   if (claimed) {
     return (
@@ -132,12 +180,24 @@ function ClaimContent() {
       <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] rounded-full pointer-events-none"
         style={{ background: 'radial-gradient(circle, rgba(255,20,20,0.05) 0%, transparent 65%)' }} />
 
-      {/* Nav */}
       <nav className="relative z-10 flex items-center justify-between px-8 py-5 border-b border-red-900/20">
         <NavLogo />
         {!isAuthenticated ? (
           <div className="flex items-center gap-2">
-            <div className="connect-wallet-nav"><ConnectButton /></div>
+            <ConnectButton
+              style={{
+                background: 'transparent',
+                border: '1px solid rgba(239,68,68,0.4)',
+                color: '#f87171',
+                fontSize: '12px',
+                padding: '8px 16px',
+                fontFamily: 'monospace',
+                letterSpacing: '0.1em',
+                textTransform: 'uppercase',
+                cursor: 'pointer',
+                borderRadius: '0',
+              }}
+            />
             <button onClick={loginWithPrivy}
               className="border border-red-900/50 text-red-500/70 text-xs px-4 py-2 font-mono tracking-widest uppercase hover:border-red-500/50 hover:text-red-400 hover:bg-red-950/20 transition-all">
               Email / OTP
@@ -155,62 +215,58 @@ function ClaimContent() {
         <div className="mb-10">
           <p className="text-xs text-red-500/40 font-mono tracking-widest uppercase mb-2">// Claim Portal</p>
           <h1 className="text-4xl font-black text-white mb-2">Claim Assets</h1>
-          <p className="text-zinc-600 text-sm font-mono">Enter the Switch ID shared by the pilot. If the timer has expired, you can claim.</p>
+          <p className="text-zinc-600 text-sm font-mono">Enter the Switch Object ID shared by the pilot. If the timer has expired, you can claim.</p>
         </div>
 
-        {/* Search */}
         <div className="flex gap-2 mb-8">
           <input
             type="text"
-            placeholder="Switch ID — e.g. sw_1234567890"
+            placeholder="0x... (Switch Object ID)"
             value={switchId}
             onChange={e => setSwitchId(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleSearch()}
             className="flex-1 bg-transparent border border-red-900/25 focus:border-red-500/40 text-white px-4 py-3 font-mono text-sm focus:outline-none transition-colors placeholder:text-zinc-800"
           />
-          <button onClick={() => handleSearch()}
-            className="px-6 py-3 font-mono text-sm tracking-widest uppercase border border-red-500/40 text-red-400 hover:bg-red-950/20 transition-all cursor-pointer whitespace-nowrap">
-            → Search
+          <button onClick={() => handleSearch()} disabled={searching}
+            className="px-6 py-3 font-mono text-sm tracking-widest uppercase border border-red-500/40 text-red-400 hover:bg-red-950/20 transition-all cursor-pointer whitespace-nowrap disabled:opacity-50">
+            {searching ? '...' : '→ Search'}
           </button>
         </div>
 
-        {/* Not found */}
         {notFound && (
           <div className="border border-red-900/20 bg-red-950/5 p-8 text-center">
             <div className="text-3xl mb-3">🔍</div>
             <p className="text-zinc-500 font-mono text-sm">No switch found with that ID.</p>
-            <p className="text-zinc-700 font-mono text-xs mt-1">Make sure the pilot shared the correct Switch ID.</p>
+            <p className="text-zinc-700 font-mono text-xs mt-1">Make sure the pilot shared the correct Object ID.</p>
           </div>
         )}
 
-        {/* Found */}
-        {found && (
+        {found && status && (
           <div className="flex flex-col gap-6">
-            {/* Switch card */}
             <div className="border p-6 transition-all duration-500" style={{
-              borderColor: isTriggerable ? 'rgba(239,68,68,0.6)' : 'rgba(255,32,32,0.15)',
-              background: isTriggerable ? 'rgba(239,68,68,0.04)' : 'rgba(255,32,32,0.02)',
-              boxShadow: isTriggerable ? '0 0 40px rgba(239,68,68,0.08)' : 'none',
+              borderColor: canTrigger ? 'rgba(239,68,68,0.6)' : 'rgba(255,32,32,0.15)',
+              background: canTrigger ? 'rgba(239,68,68,0.04)' : 'rgba(255,32,32,0.02)',
+              boxShadow: canTrigger ? '0 0 40px rgba(239,68,68,0.08)' : 'none',
             }}>
               <div className="flex items-start justify-between mb-5">
                 <div>
                   <div className="font-black text-white text-2xl mb-1">{found.characterName}</div>
                   <div className="text-xs text-zinc-600 font-mono">
-                    Switch ID: <span className="text-zinc-500">{found.id}</span>
+                    {found.id.slice(0, 14)}...{found.id.slice(-8)}
                   </div>
                 </div>
                 <span className="text-xs font-mono tracking-widest px-3 py-1 border" style={{
-                  color: isTriggerable ? '#ef4444' : status === 'DANGER' ? '#f59e0b' : '#22c55e',
-                  borderColor: isTriggerable ? 'rgba(239,68,68,0.4)' : status === 'DANGER' ? 'rgba(245,158,11,0.3)' : 'rgba(34,197,94,0.3)',
+                  color: statusStyle[status]?.color,
+                  borderColor: statusStyle[status]?.border,
                 }}>
-                  {isTriggerable ? '☠ TRIGGERED' : status === 'DANGER' ? '⚠ DANGER' : '● ARMED'}
+                  {status === 'ARMED' ? '● ARMED' : status === 'TRIGGERED' ? '☠ TRIGGERED' : status === 'EXPIRED' ? '⚠ EXPIRED' : '○ DISARMED'}
                 </span>
               </div>
 
               <div className="grid grid-cols-2 gap-4 mb-5 font-mono text-sm">
                 <div className="flex flex-col gap-1">
                   <span className="text-xs text-zinc-600 tracking-widest uppercase">SUI Locked</span>
-                  <span className="text-yellow-400 font-black text-lg">{found.depositAmount} SUI</span>
+                  <span className="text-yellow-400 font-black text-lg">{found.depositAmount.toFixed(2)} SUI</span>
                 </div>
                 <div className="flex flex-col gap-1">
                   <span className="text-xs text-zinc-600 tracking-widest uppercase">Timer</span>
@@ -218,9 +274,9 @@ function ClaimContent() {
                 </div>
               </div>
 
-              {!isTriggerable && (
+              {found.isActive && !found.isTriggered && (
                 <div className="mb-5">
-                  <CountdownDisplay lastSeen={found.lastSeen} timerDays={found.timerDays} />
+                  <CountdownDisplay deadlineMs={found.deadlineMs} />
                 </div>
               )}
 
@@ -233,8 +289,7 @@ function ClaimContent() {
                 </div>
               )}
 
-              {/* Claim or wait */}
-              {isTriggerable ? (
+              {canTrigger ? (
                 <div className="flex flex-col gap-3">
                   {address ? (
                     <>
@@ -242,18 +297,29 @@ function ClaimContent() {
                         Claiming to: <span className="text-zinc-400">{address.slice(0, 10)}...{address.slice(-6)}</span>
                       </div>
                       <button onClick={handleClaim}
-                        className="w-full py-4 font-mono text-sm tracking-widest uppercase border border-red-500/60 text-red-400 hover:bg-red-950/20 transition-all cursor-pointer relative overflow-hidden group"
+                        className="w-full py-4 font-mono text-sm tracking-widest uppercase border border-red-500/60 text-red-400 hover:bg-red-950/20 transition-all cursor-pointer"
                         style={{ boxShadow: '0 0 40px rgba(255,32,32,0.12)' }}>
-                        <span className="relative z-10">☠ CLAIM {found.depositAmount} SUI</span>
-                        <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-                          style={{ background: 'radial-gradient(ellipse at center, rgba(255,32,32,0.1) 0%, transparent 70%)' }} />
+                        ☠ CLAIM {found.depositAmount.toFixed(2)} SUI
                       </button>
                     </>
                   ) : (
                     <div className="flex flex-col gap-3 items-center">
                       <p className="text-xs text-zinc-600 font-mono tracking-widest">Connect wallet to claim</p>
                       <div className="flex gap-3">
-                        <div className="connect-wallet-wrapper"><ConnectButton /></div>
+                        <ConnectButton
+                          style={{
+                            background: 'transparent',
+                            border: '1px solid rgba(239,68,68,0.4)',
+                            color: '#f87171',
+                            fontSize: '12px',
+                            padding: '12px 24px',
+                            fontFamily: 'monospace',
+                            letterSpacing: '0.1em',
+                            textTransform: 'uppercase',
+                            cursor: 'pointer',
+                            borderRadius: '0',
+                          }}
+                        />
                         <button onClick={loginWithPrivy}
                           className="px-6 py-3 font-mono text-sm tracking-widest uppercase border border-red-500/40 text-red-400 hover:bg-red-950/20 transition-all">
                           Email / OTP
@@ -265,20 +331,22 @@ function ClaimContent() {
               ) : (
                 <div className="py-3 text-center border border-zinc-900">
                   <span className="text-xs font-mono text-zinc-600 tracking-widest uppercase">
-                    Switch still active — pilot is alive
+                    {found.isTriggered ? '☠ Already triggered' : found.isActive ? 'Switch still active — pilot is alive' : '○ Switch disarmed'}
                   </span>
                 </div>
               )}
             </div>
 
-            {/* Share link hint */}
             <div className="border border-zinc-900 bg-zinc-950/50 px-5 py-4 flex items-center justify-between gap-4">
               <div>
                 <div className="text-xs text-zinc-600 font-mono tracking-widest uppercase mb-1">Share Claim Link</div>
-                <div className="text-xs text-zinc-700 font-mono">/claim?id={found.id}</div>
+                <div className="text-xs text-zinc-700 font-mono truncate">/claim?id={found.id.slice(0, 20)}...</div>
               </div>
               <button
-                onClick={() => navigator.clipboard.writeText(`${window.location.origin}/claim?id=${found.id}`)}
+                onClick={() => {
+                  navigator.clipboard.writeText(`${window.location.origin}/claim?id=${found.id}`);
+                  alert('Claim link copied!');
+                }}
                 className="text-xs font-mono tracking-widest uppercase px-3 py-2 border border-zinc-800 text-zinc-600 hover:border-zinc-700 hover:text-zinc-400 transition-all cursor-pointer shrink-0">
                 Copy Link
               </button>
